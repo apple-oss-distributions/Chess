@@ -1,110 +1,46 @@
 /*
 	File:		MBCBoardView.h
 	Contains:	Displays and manipulates an OpenGL chess board
-	Version:	1.0
-	Copyright:	© 2002-2007 by Apple Computer, Inc., all rights reserved.
+	Copyright:	© 2002-2012 by Apple Inc., all rights reserved.
 
-	File Ownership:
-
-		DRI:				Matthias Neeracher    x43683
-
-	Writers:
-
-		(MN)	Matthias Neeracher
-
-	Change History (most recent first):
-
-		$Log: MBCBoardView.h,v $
-		Revision 1.30  2008/10/24 22:07:28  neerache
-		<rdar://problem/5459104> Chess: Rotating the playing board while computer is moving results with the mouse as the chess piece
-		
-		Revision 1.29  2008/10/24 20:06:17  neerache
-		<rdar://problem/3710028> ER: Chessboard anti-aliasing
-		
-		Revision 1.28  2007/03/02 23:06:00  neerache
-		<rdar://problem/4038207> Allow the user to type in a move in Chess
-		
-		Revision 1.27  2004/08/16 07:50:55  neerache
-		Support accessibility
-		
-		Revision 1.26  2004/07/10 04:53:29  neerache
-		Tweak visuals
-		
-		Revision 1.25  2003/07/17 23:30:07  neerache
-		Don't need CenterOfGravity info any longer
-		
-		Revision 1.24  2003/07/14 23:21:49  neerache
-		Move promotion defaults into MBCBoard
-		
-		Revision 1.23  2003/07/07 23:50:42  neerache
-		Work around a graphics bug
-		
-		Revision 1.22  2003/07/07 08:47:53  neerache
-		Switch to textured main window
-		
-		Revision 1.21  2003/06/30 05:16:30  neerache
-		Transfer move execution to Controller
-		
-		Revision 1.20  2003/06/15 21:13:09  neerache
-		Adjust lights, fix animation, work on other drawing issues
-		
-		Revision 1.19  2003/06/05 08:31:26  neerache
-		Added Tuner
-		
-		Revision 1.18  2003/06/04 23:14:05  neerache
-		Neater manipulation widget; remove obsolete graphics options
-		
-		Revision 1.17  2003/06/04 09:25:47  neerache
-		New and improved board manipulation metaphor
-		
-		Revision 1.16  2003/06/02 05:44:48  neerache
-		Implement direct board manipulation
-		
-		Revision 1.15  2003/06/02 04:21:40  neerache
-		Start implementing drawing styles for board elements
-		
-		Revision 1.14  2003/05/23 03:22:16  neerache
-		Add FPS computation
-		
-		Revision 1.13  2003/05/05 23:50:40  neerache
-		Tweak appearance, add border, add animations
-		
-		Revision 1.12  2003/05/02 01:16:33  neerache
-		Simplify drawing methods
-		
-		Revision 1.11  2003/04/28 22:13:25  neerache
-		Eliminate drawBoardPlane
-		
-		Revision 1.10  2003/04/25 22:26:23  neerache
-		Simplify mouse model, fix startup bug
-		
-		Revision 1.9  2003/04/24 23:20:35  neeri
-		Support pawn promotions
-		
-		Revision 1.8  2003/04/10 23:03:16  neeri
-		Load positions
-		
-		Revision 1.7  2003/03/28 01:31:07  neeri
-		Support hints, last move
-		
-		Revision 1.6  2002/12/04 02:30:50  neeri
-		Experiment (unsuccessfully so far) with ways to speed up piece movement
-		
-		Revision 1.5  2002/10/15 22:49:39  neeri
-		Add support for texture styles
-		
-		Revision 1.4  2002/10/08 23:02:54  neeri
-		Rotated board, changeable colors
-		
-		Revision 1.3  2002/09/13 23:57:05  neeri
-		Support for Crazyhouse display and mouse
-		
-		Revision 1.2  2002/08/26 23:11:17  neeri
-		Switched to Azimuth/Elevation based Camera positioning model
-		
-		Revision 1.1  2002/08/22 23:47:06  neeri
-		Initial Checkin
-		
+	IMPORTANT: This Apple software is supplied to you by Apple Computer,
+	Inc.  ("Apple") in consideration of your agreement to the following
+	terms, and your use, installation, modification or redistribution of
+	this Apple software constitutes acceptance of these terms.  If you do
+	not agree with these terms, please do not use, install, modify or
+	redistribute this Apple software.
+	
+	In consideration of your agreement to abide by the following terms,
+	and subject to these terms, Apple grants you a personal, non-exclusive
+	license, under Apple's copyrights in this original Apple software (the
+	"Apple Software"), to use, reproduce, modify and redistribute the
+	Apple Software, with or without modifications, in source and/or binary
+	forms; provided that if you redistribute the Apple Software in its
+	entirety and without modifications, you must retain this notice and
+	the following text and disclaimers in all such redistributions of the
+	Apple Software.  Neither the name, trademarks, service marks or logos
+	of Apple Inc. may be used to endorse or promote products
+	derived from the Apple Software without specific prior written
+	permission from Apple.  Except as expressly stated in this notice, no
+	other rights or licenses, express or implied, are granted by Apple
+	herein, including but not limited to any patent rights that may be
+	infringed by your derivative works or by other works in which the
+	Apple Software may be incorporated.
+	
+	The Apple Software is provided by Apple on an "AS IS" basis.  APPLE
+	MAKES NO WARRANTIES, EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION
+	THE IMPLIED WARRANTIES OF NON-INFRINGEMENT, MERCHANTABILITY AND
+	FITNESS FOR A PARTICULAR PURPOSE, REGARDING THE APPLE SOFTWARE OR ITS
+	USE AND OPERATION ALONE OR IN COMBINATION WITH YOUR PRODUCTS.
+	
+	IN NO EVENT SHALL APPLE BE LIABLE FOR ANY SPECIAL, INDIRECT,
+	INCIDENTAL OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+	PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+	PROFITS; OR BUSINESS INTERRUPTION) ARISING IN ANY WAY OUT OF THE USE,
+	REPRODUCTION, MODIFICATION AND/OR DISTRIBUTION OF THE APPLE SOFTWARE,
+	HOWEVER CAUSED AND WHETHER UNDER THEORY OF CONTRACT, TORT (INCLUDING
+	NEGLIGENCE), STRICT LIABILITY OR OTHERWISE, EVEN IF APPLE HAS BEEN
+	ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #import "MBCBoard.h"
@@ -144,25 +80,25 @@ const float kBorderWidth		=  6.25f;
 const float kMinElevation		= 10.0f;
 const float kMaxElevation		= 80.0f;
 
-@class MBCController;
 @class MBCInteractivePlayer;
 @class MBCDrawStyle;
+@class MBCBoardWin;
 
 @interface MBCBoardView : NSOpenGLView
 {
-	MBCController *			fController;
-	MBCInteractivePlayer *	fInteractive;
-    MBCBoard *  			fBoard;
-	MBCSquare				fPickedSquare;
-	MBCPiece				fSelectedPiece;
-	MBCSquare				fSelectedSquare;
-	MBCSquare				fSelectedDest;
-	MBCPosition				fSelectedPos;
-	MBCPosition				fLastSelectedPos;
-	float					fRawAzimuth;
-	NSPoint					fOrigMouse;
-	NSPoint					fCurMouse;
-	struct timeval			fLastRedraw;
+    MBCBoardWin *         fController;
+    MBCInteractivePlayer *fInteractive;
+    MBCBoard *            fBoard;
+    MBCSquare             fPickedSquare;
+    MBCPiece              fSelectedPiece;
+    MBCSquare             fSelectedSquare;
+    MBCSquare             fSelectedDest;
+    MBCPosition           fSelectedPos;
+    MBCPosition           fLastSelectedPos;
+    float                 fRawAzimuth;
+    NSPoint               fOrigMouse;
+    NSPoint               fCurMouse;
+    struct timeval		    fLastRedraw;
 @public
 	float					fAzimuth;
 	float					fElevation;
@@ -177,7 +113,11 @@ const float kMaxElevation		= 80.0f;
 @private
 	GLuint					fNumberTextures[8];
 	GLuint					fLetterTextures[8];
-	bool					fHasFSAA;
+	int						fMaxFSAA;
+	int						fCurFSAA;
+	int						fLastFSAASize;
+	bool					fNeedStaticModels;
+	bool					fIsPickingFormat;
 	bool					fIsFloating;
 	bool					fWantMouse;
 	bool					fNeedPerspective;
@@ -198,6 +138,7 @@ const float kMaxElevation		= 80.0f;
 	char					fKeyBuffer;
 	float					fAnisotropy;
 	GLint					fNumSamples;
+    NSTrackingArea *       fTrackingArea;
 }
 
 //
@@ -216,6 +157,11 @@ const float kMaxElevation		= 80.0f;
 - (void) animationDone;		// Animation finished
 
 //
+// Fall back to less memory hungry graphics format
+//
+- (void) pickPixelFormat:(BOOL)afterFailure;
+
+//
 // Change textures
 //
 - (void) setStyleForBoard:(NSString *)boardStyle pieces:(NSString *)pieceStyle;
@@ -232,8 +178,8 @@ const float kMaxElevation		= 80.0f;
 //
 // Show hints and last moves
 //
-- (void) showHint:(MBCMove *)move;
-- (void) showLastMove:(MBCMove *)move;
+- (void) showMoveAsHint:(MBCMove *)move;
+- (void) showMoveAsLast:(MBCMove *)move;
 - (void) hideMoves;
 
 //
@@ -242,7 +188,6 @@ const float kMaxElevation		= 80.0f;
 - (MBCSquare) 	positionToSquare:(const MBCPosition *)position;
 - (MBCSquare) 	positionToSquareOrRegion:(const MBCPosition *)position;
 - (MBCPosition)	squareToPosition:(MBCSquare)square;
-- (NSRect)	    approximateBoundsOfSquare:(MBCSquare)square;
 - (void) snapToSquare:(MBCPosition *)position;
 - (MBCSide) 	facing;			// What player are we facing?
 - (BOOL) 		facingWhite;	// Are we facing white?

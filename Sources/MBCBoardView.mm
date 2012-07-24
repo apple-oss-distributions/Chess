@@ -1,125 +1,46 @@
 /*
 	File:		MBCBoardView.mm
 	Contains:	General view handling infrastructure
-	Version:	1.0
-	Copyright:	© 2002-2008 by Apple Computer, Inc., all rights reserved.
+	Copyright:	Â© 2002-2012 by Apple Inc., all rights reserved.
 
-	File Ownership:
-
-		DRI:				Matthias Neeracher    x43683
-
-	Writers:
-
-		(MN)	Matthias Neeracher
-
-	Change History (most recent first):
-
-		$Log: MBCBoardView.mm,v $
-		Revision 1.35  2008/10/24 21:39:06  neerache
-		Insist on acceleration for fancy graphics
-		
-		Revision 1.34  2008/10/24 20:06:17  neerache
-		<rdar://problem/3710028> ER: Chessboard anti-aliasing
-		
-		Revision 1.33  2008/06/03 17:29:49  neerache
-		<rdar://problem/5793568> - Chess needs to add NSOpenGLPFAAllowOfflineDisplays pixel format attribute to OpenGL contexts
-		
-		Revision 1.32  2007/03/02 23:06:00  neerache
-		<rdar://problem/4038207> Allow the user to type in a move in Chess
-		
-		Revision 1.31  2006/10/09 21:05:01  neerache
-		Correct HiDPI problems <rdar://problem/4412218>
-		
-		Revision 1.30  2006/07/14 04:11:23  neerache
-		Reset move arrows <rdar://problem/4376681>
-		
-		Revision 1.29  2005/06/17 22:26:31  neerache
-		gcc4 enforces language rules more strictly
-		
-		Revision 1.28  2004/08/16 07:50:55  neerache
-		Support accessibility
-		
-		Revision 1.27  2003/07/14 23:21:49  neerache
-		Move promotion defaults into MBCBoard
-		
-		Revision 1.26  2003/07/07 09:16:42  neerache
-		Textured windows are too slow for low end machines, disable
-		
-		Revision 1.25  2003/07/07 08:47:53  neerache
-		Switch to textured main window
-		
-		Revision 1.24  2003/06/30 05:16:30  neerache
-		Transfer move execution to Controller
-		
-		Revision 1.23  2003/06/16 02:18:03  neerache
-		Implement floating board
-		
-		Revision 1.22  2003/06/15 21:13:09  neerache
-		Adjust lights, fix animation, work on other drawing issues
-		
-		Revision 1.21  2003/06/05 08:31:26  neerache
-		Added Tuner
-		
-		Revision 1.20  2003/06/04 23:14:05  neerache
-		Neater manipulation widget; remove obsolete graphics options
-		
-		Revision 1.19  2003/06/04 09:25:47  neerache
-		New and improved board manipulation metaphor
-		
-		Revision 1.18  2003/06/02 05:44:48  neerache
-		Implement direct board manipulation
-		
-		Revision 1.17  2003/06/02 04:21:40  neerache
-		Start implementing drawing styles for board elements
-		
-		Revision 1.16  2003/05/24 20:28:27  neerache
-		Address race conditions between ploayer and engine
-		
-		Revision 1.15  2003/05/23 03:22:16  neerache
-		Add FPS computation
-		
-		Revision 1.14  2003/05/05 23:50:40  neerache
-		Tweak appearance, add border, add animations
-		
-		Revision 1.13  2003/05/02 01:16:33  neerache
-		Simplify drawing methods
-		
-		Revision 1.12  2003/04/28 22:13:25  neerache
-		Eliminate drawBoardPlane
-		
-		Revision 1.11  2003/04/25 22:26:23  neerache
-		Simplify mouse model, fix startup bug
-		
-		Revision 1.10  2003/04/24 23:20:35  neeri
-		Support pawn promotions
-		
-		Revision 1.9  2003/04/02 18:45:57  neeri
-		Experiment with different snap techniques
-		
-		Revision 1.8  2003/03/28 01:31:07  neeri
-		Support hints, last move
-		
-		Revision 1.7  2002/12/04 02:30:50  neeri
-		Experiment (unsuccessfully so far) with ways to speed up piece movement
-		
-		Revision 1.6  2002/10/15 22:49:39  neeri
-		Add support for texture styles
-		
-		Revision 1.5  2002/10/08 23:02:54  neeri
-		Rotated board, changeable colors
-		
-		Revision 1.4  2002/09/13 23:57:05  neeri
-		Support for Crazyhouse display and mouse
-		
-		Revision 1.3  2002/09/12 17:46:46  neeri
-		Introduce dual board representation, in-hand pieces
-		
-		Revision 1.2  2002/08/26 23:11:17  neeri
-		Switched to Azimuth/Elevation based Camera positioning model
-		
-		Revision 1.1  2002/08/22 23:47:06  neeri
-		Initial Checkin
-		
+	IMPORTANT: This Apple software is supplied to you by Apple Computer,
+	Inc.  ("Apple") in consideration of your agreement to the following
+	terms, and your use, installation, modification or redistribution of
+	this Apple software constitutes acceptance of these terms.  If you do
+	not agree with these terms, please do not use, install, modify or
+	redistribute this Apple software.
+	
+	In consideration of your agreement to abide by the following terms,
+	and subject to these terms, Apple grants you a personal, non-exclusive
+	license, under Apple's copyrights in this original Apple software (the
+	"Apple Software"), to use, reproduce, modify and redistribute the
+	Apple Software, with or without modifications, in source and/or binary
+	forms; provided that if you redistribute the Apple Software in its
+	entirety and without modifications, you must retain this notice and
+	the following text and disclaimers in all such redistributions of the
+	Apple Software.  Neither the name, trademarks, service marks or logos
+	of Apple Inc. may be used to endorse or promote products
+	derived from the Apple Software without specific prior written
+	permission from Apple.  Except as expressly stated in this notice, no
+	other rights or licenses, express or implied, are granted by Apple
+	herein, including but not limited to any patent rights that may be
+	infringed by your derivative works or by other works in which the
+	Apple Software may be incorporated.
+	
+	The Apple Software is provided by Apple on an "AS IS" basis.  APPLE
+	MAKES NO WARRANTIES, EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION
+	THE IMPLIED WARRANTIES OF NON-INFRINGEMENT, MERCHANTABILITY AND
+	FITNESS FOR A PARTICULAR PURPOSE, REGARDING THE APPLE SOFTWARE OR ITS
+	USE AND OPERATION ALONE OR IN COMBINATION WITH YOUR PRODUCTS.
+	
+	IN NO EVENT SHALL APPLE BE LIABLE FOR ANY SPECIAL, INDIRECT,
+	INCIDENTAL OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+	PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+	PROFITS; OR BUSINESS INTERRUPTION) ARISING IN ANY WAY OUT OF THE USE,
+	REPRODUCTION, MODIFICATION AND/OR DISTRIBUTION OF THE APPLE SOFTWARE,
+	HOWEVER CAUSED AND WHETHER UNDER THEORY OF CONTRACT, TORT (INCLUDING
+	NEGLIGENCE), STRICT LIABILITY OR OTHERWISE, EVEN IF APPLE HAS BEEN
+	ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #import "MBCBoardView.h"
 #import "MBCBoardAnimation.h"
@@ -136,6 +57,8 @@
 #import "MBCAnimation.h"
 #import "MBCController.h"
 #import "MBCPlayer.h"
+#import "MBCBoardWin.h"
+#import "MBCUserDefaults.h"
 
 #include <algorithm>
 
@@ -155,15 +78,8 @@ void MBCColor::SetColor(NSColor * newColor)
 
 @implementation MBCBoardView
 
-- (id) initWithFrame:(NSRect)rect
+- (NSOpenGLPixelFormat *)pixelFormatWithFSAA:(int)fsaaSamples
 {
-	float	light_ambient		= 0.125f;
-	GLfloat light_pos[4] 		= { -60.0, 200.0, 0.0, 0.0};
-	
-	//
-	// We first try to enable Full Scene Anti Aliasing if our graphics
-	// hardware lets use get away with it.
-	//
     NSOpenGLPixelFormatAttribute fsaa_attr[] = 
     {
 		NSOpenGLPFAAllowOfflineRenderers,
@@ -177,7 +93,7 @@ void MBCColor::SetColor(NSColor * newColor)
         NSOpenGLPFAStencilSize, 	(NSOpenGLPixelFormatAttribute)1,
 		NSOpenGLPFAMultisample,		
 		NSOpenGLPFASampleBuffers, 	(NSOpenGLPixelFormatAttribute)1, 
-		NSOpenGLPFASamples, 		(NSOpenGLPixelFormatAttribute)4,
+		NSOpenGLPFASamples, 		(NSOpenGLPixelFormatAttribute)fsaaSamples,
         (NSOpenGLPixelFormatAttribute)0 
 	};
     NSOpenGLPixelFormatAttribute jaggy_attr[] = 
@@ -192,18 +108,60 @@ void MBCColor::SetColor(NSColor * newColor)
         (NSOpenGLPixelFormatAttribute)0 
 	};
 	NSOpenGLPixelFormat *	pixelFormat = 
-		[[NSOpenGLPixelFormat alloc] initWithAttributes:fsaa_attr];
-	if (!(fHasFSAA = pixelFormat != 0))
-		pixelFormat = 
-			[[NSOpenGLPixelFormat alloc] initWithAttributes:jaggy_attr];
+		[[NSOpenGLPixelFormat alloc] initWithAttributes:(fsaaSamples > 0) ? fsaa_attr : jaggy_attr];
+
+	return [pixelFormat autorelease];
+}
+
+static int MaxAntiAliasing()
+{
+    //
+    //  Analyze VRAM configuration and limit FSAA for low memory configurations.
+    //
+	static int sMax = -1;
+
+	if (sMax < 0) {
+		GLint min_vram = 0;
+		CGLRendererInfoObj rend;
+		GLint n_rend = 0;
+		CGLQueryRendererInfo(0xffffff, &rend, &n_rend);
+		for (GLint i=0; i<n_rend; ++i) {
+			GLint cur_vram = 0;
+			CGLDescribeRenderer(rend, i, kCGLRPVideoMemoryMegabytes, &cur_vram);
+            if (!min_vram)
+                min_vram = cur_vram;
+            else if (cur_vram)
+                min_vram = std::min(min_vram, cur_vram);
+		}
+		sMax = (min_vram > 256 ? 8 : 4);
+	}
+
+	return sMax;
+}
+
+- (id) initWithFrame:(NSRect)rect
+{
+	float	light_ambient		= 0.125f;
+	GLfloat light_pos[4] 		= { -60.0, 200.0, 0.0, 0.0};
+	
+	//
+	// We first try to enable Full Scene Anti Aliasing if our graphics
+	// hardware lets use get away with it.
+	//
+	NSOpenGLPixelFormat * pixelFormat = nil;
+	for (fMaxFSAA = MaxAntiAliasing()+2; !pixelFormat; )
+		pixelFormat = [self pixelFormatWithFSAA:(fMaxFSAA -= 2)];
+	fCurFSAA = fMaxFSAA;
     [super initWithFrame:rect pixelFormat:pixelFormat];
+    [self setWantsBestResolutionOpenGLSurface:YES];
     [[self openGLContext] makeCurrentContext];
 	glEnable(GL_MULTISAMPLE);
 	
 	//
 	// Determine some of our graphics limit
 	//
-	if (strstr((const char *)glGetString(GL_EXTENSIONS), "GL_EXT_texture_filter_anisotropic")) {
+	const char * const kGlExt = (const char *)glGetString(GL_EXTENSIONS);
+	if (kGlExt && strstr(kGlExt, "GL_EXT_texture_filter_anisotropic")) {
 		glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &fAnisotropy);
 		fAnisotropy = std::min(fAnisotropy, 4.0f);
 	} else
@@ -221,8 +179,7 @@ void MBCColor::SetColor(NSColor * newColor)
 	fPieceAttr			= nil;
 	fBoardStyle			= nil;
 	fPieceStyle			= nil;
-	[self loadColors];
-	[self generateModelLists];
+	fNeedStaticModels	= true;
 
 	fElevation			=  60.0f;
 	fAzimuth			= 180.0f;
@@ -234,15 +191,57 @@ void MBCColor::SetColor(NSColor * newColor)
 	fWantMouse			= false;
 	fNeedPerspective	= true;
 	fAmbient			= light_ambient;
+	fIsPickingFormat	= false;
+	fLastFSAASize		= 2000000000;
 	memcpy(fLightPos, light_pos, sizeof(fLightPos));
 	fKeyBuffer			= 0;
 
-	fHandCursor			= [[NSCursor alloc]
-							  initWithImage:[NSImage imageNamed:@"handCursor"]
-							  hotSpot:NSMakePoint(0.5f, 0.75f)];
+	fHandCursor			= [[NSCursor pointingHandCursor] retain];
 	fArrowCursor		= [[NSCursor arrowCursor] retain];
-	
+    [self updateTrackingAreas];
+
     return self;
+}
+
+- (void)updateTrackingAreas 
+{
+    [self removeTrackingArea:fTrackingArea];
+    [fTrackingArea release];
+    fTrackingArea = [[NSTrackingArea alloc] initWithRect:[self bounds]
+                                                 options: (NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved | NSTrackingActiveInKeyWindow)
+                                                   owner:self userInfo:nil];
+    [self addTrackingArea:fTrackingArea];
+}
+
+- (void) pickPixelFormat:(BOOL)afterFailure
+{
+	if (fIsPickingFormat)
+		return; // Avoid recursive picking
+	//
+	// If we didn't fail with the current format, try whether we can become more aggressive again
+	//
+	NSRect 	bounds = [self bounds];
+	int 	curSize= bounds.size.width*bounds.size.height;
+	if (afterFailure) {
+		fLastFSAASize 		= curSize;
+	} else {
+		if (fCurFSAA == fMaxFSAA || curSize >= fLastFSAASize)
+			return; // Won't get any better
+		fCurFSAA 		= fMaxFSAA+2;
+		fLastFSAASize	= 2000000000;
+	}
+	fIsPickingFormat = true;
+	do {
+		fCurFSAA -= 2;
+		[self clearGLContext];
+		[self setPixelFormat:[self pixelFormatWithFSAA:fCurFSAA]];
+		[[self openGLContext] setView:self];
+	} while (fCurFSAA && [[self openGLContext] view] != self);
+	[[self openGLContext] makeCurrentContext];
+	if (fCurFSAA)
+		glEnable(GL_MULTISAMPLE);
+	fIsPickingFormat 	= false;
+	NSLog(@"Size is now %.0fx%.0f FSAA = %d [Max %d]\n", bounds.size.width, bounds.size.height, fCurFSAA, fMaxFSAA);
 }
 
 - (void) setStyleForBoard:(NSString *)boardStyle pieces:(NSString *)pieceStyle
@@ -260,17 +259,14 @@ void MBCColor::SetColor(NSColor * newColor)
 
 - (void)awakeFromNib
 {
-	fBoard			= [fController board];
-	fInteractive	= [fController interactive];
-	
-	const float	kUserSpaceScale = 1.0f / [[self window] userSpaceScaleFactor];
-		
-	[self scaleUnitSquareToSize:NSMakeSize(kUserSpaceScale, kUserSpaceScale)];
+    fController     = [[self window] windowController];
+	fBoard          = [fController board];
+	fInteractive    = [fController interactive];
 }
 
 - (BOOL) isOpaque
 {
-	return YES;
+	return NO;
 }
 
 - (BOOL) mouseDownCanMoveWindow
@@ -285,6 +281,7 @@ void MBCColor::SetColor(NSColor * newColor)
 
 - (void) reshape
 {
+	[self pickPixelFormat:NO];
 	[self needsUpdate];
 }
 
@@ -339,18 +336,18 @@ void MBCColor::SetColor(NSColor * newColor)
 	}
 }
 
-- (void) showHint:(MBCMove *)move
+- (void) showMoveAsHint:(MBCMove *)move
 {
 	[move retain];
-	[fHintMove release];
+	[fHintMove autorelease];
 	fHintMove	= move;
 	[self setNeedsDisplay:YES];
 }
 
-- (void) showLastMove:(MBCMove *)move
+- (void) showMoveAsLast:(MBCMove *)move
 {
 	[move retain];
-	[fLastMove release];
+	[fLastMove autorelease];
 	fLastMove	= move;
 	[self setNeedsDisplay:YES];
 }

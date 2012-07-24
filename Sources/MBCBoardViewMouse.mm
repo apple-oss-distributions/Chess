@@ -1,92 +1,46 @@
 /*
 	File:		MBCBoardViewMouse.mm
 	Contains:	Handle mouse coordinate transformations
-	Version:	1.0
-	Copyright:	© 2002-2008 by Apple Inc., all rights reserved.
+	Copyright:	© 2002-2012 by Apple Inc., all rights reserved.
 
-	File Ownership:
-
-		DRI:				Matthias Neeracher    x43683
-
-	Writers:
-
-		(MN)	Matthias Neeracher
-
-	Change History (most recent first):
-
-		$Log: MBCBoardViewMouse.mm,v $
-		Revision 1.24  2008/10/24 22:07:28  neerache
-		<rdar://problem/5459104> Chess: Rotating the playing board while computer is moving results with the mouse as the chess piece
-		
-		Revision 1.23  2008/10/24 20:04:48  neerache
-		<rdar://problem/3726597> Implement diagonal moves, but disable them
-		
-		Revision 1.22  2008/04/22 19:47:41  neerache
-		<rdar://problem/5750936> Adoption of Clean / Dirty API by Chess
-		
-		Revision 1.21  2007/03/02 23:06:00  neerache
-		<rdar://problem/4038207> Allow the user to type in a move in Chess
-		
-		Revision 1.20  2004/09/08 00:35:24  neerache
-		Reduce square sizes to avoid navigation ambiguities
-		
-		Revision 1.19  2004/08/16 07:50:55  neerache
-		Support accessibility
-		
-		Revision 1.18  2003/07/18 22:14:26  neerache
-		Disable pondering during drag to improve interactive performance (RADAR 2736549)
-		
-		Revision 1.17  2003/07/14 23:21:49  neerache
-		Move promotion defaults into MBCBoard
-		
-		Revision 1.16  2003/07/07 08:47:54  neerache
-		Switch to textured main window
-		
-		Revision 1.15  2003/06/18 21:55:17  neerache
-		More (mostly unsuccessful) tweaking of floating windows
-		
-		Revision 1.14  2003/06/05 08:31:26  neerache
-		Added Tuner
-		
-		Revision 1.13  2003/06/05 00:14:37  neerache
-		Reduce excessive threshold
-		
-		Revision 1.12  2003/06/04 23:14:05  neerache
-		Neater manipulation widget; remove obsolete graphics options
-		
-		Revision 1.11  2003/06/04 09:25:47  neerache
-		New and improved board manipulation metaphor
-		
-		Revision 1.10  2003/06/02 05:44:48  neerache
-		Implement direct board manipulation
-		
-		Revision 1.9  2003/05/24 20:28:27  neerache
-		Address race conditions between ploayer and engine
-		
-		Revision 1.8  2003/05/02 01:16:33  neerache
-		Simplify drawing methods
-		
-		Revision 1.7  2003/04/28 22:11:45  neerache
-		Handle black promotion square
-		
-		Revision 1.6  2003/04/25 22:26:23  neerache
-		Simplify mouse model, fix startup bug
-		
-		Revision 1.5  2003/04/25 16:37:00  neerache
-		Clean automake build
-		
-		Revision 1.4  2003/04/24 23:20:35  neeri
-		Support pawn promotions
-		
-		Revision 1.3  2003/04/02 19:01:36  neeri
-		Explore strategies to speed up dragging
-		
-		Revision 1.2  2002/12/04 02:30:50  neeri
-		Experiment (unsuccessfully so far) with ways to speed up piece movement
-		
-		Revision 1.1  2002/08/22 23:47:06  neeri
-		Initial Checkin
-		
+	IMPORTANT: This Apple software is supplied to you by Apple Computer,
+	Inc.  ("Apple") in consideration of your agreement to the following
+	terms, and your use, installation, modification or redistribution of
+	this Apple software constitutes acceptance of these terms.  If you do
+	not agree with these terms, please do not use, install, modify or
+	redistribute this Apple software.
+	
+	In consideration of your agreement to abide by the following terms,
+	and subject to these terms, Apple grants you a personal, non-exclusive
+	license, under Apple's copyrights in this original Apple software (the
+	"Apple Software"), to use, reproduce, modify and redistribute the
+	Apple Software, with or without modifications, in source and/or binary
+	forms; provided that if you redistribute the Apple Software in its
+	entirety and without modifications, you must retain this notice and
+	the following text and disclaimers in all such redistributions of the
+	Apple Software.  Neither the name, trademarks, service marks or logos
+	of Apple Inc. may be used to endorse or promote products
+	derived from the Apple Software without specific prior written
+	permission from Apple.  Except as expressly stated in this notice, no
+	other rights or licenses, express or implied, are granted by Apple
+	herein, including but not limited to any patent rights that may be
+	infringed by your derivative works or by other works in which the
+	Apple Software may be incorporated.
+	
+	The Apple Software is provided by Apple on an "AS IS" basis.  APPLE
+	MAKES NO WARRANTIES, EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION
+	THE IMPLIED WARRANTIES OF NON-INFRINGEMENT, MERCHANTABILITY AND
+	FITNESS FOR A PARTICULAR PURPOSE, REGARDING THE APPLE SOFTWARE OR ITS
+	USE AND OPERATION ALONE OR IN COMBINATION WITH YOUR PRODUCTS.
+	
+	IN NO EVENT SHALL APPLE BE LIABLE FOR ANY SPECIAL, INDIRECT,
+	INCIDENTAL OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+	PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+	PROFITS; OR BUSINESS INTERRUPTION) ARISING IN ANY WAY OUT OF THE USE,
+	REPRODUCTION, MODIFICATION AND/OR DISTRIBUTION OF THE APPLE SOFTWARE,
+	HOWEVER CAUSED AND WHETHER UNDER THEORY OF CONTRACT, TORT (INCLUDING
+	NEGLIGENCE), STRICT LIABILITY OR OTHERWISE, EVEN IF APPLE HAS BEEN
+	ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #import "MBCBoardViewMouse.h"
@@ -94,6 +48,8 @@
 #import "MBCInteractivePlayer.h"
 #import "MBCController.h"
 #import "MBCEngine.h"
+#import "MBCBoardWin.h"
+#import "MBCDebug.h"
 
 #import <OpenGL/glu.h>
 
@@ -101,9 +57,6 @@
 
 using std::min;
 using std::max;
-
-extern NSString * kMBCBoardAngle;
-extern NSString * kMBCBoardSpin;
 
 //
 // We're doing a lot of Projects and UnProjects. 
@@ -169,6 +122,10 @@ MBCPosition MBCUnProjector::UnProject()
 	pos[1] = wv[1];
 	pos[2] = wv[2];
 
+    if (MBCDebug::LogMouse())
+        fprintf(stderr, "Mouse (%.0f,%.0f) @ %5.3f -> (%4.1f,%4.1f,%4.1f)\n", 
+                fWinX, fWinY, z, pos[0], pos[1], pos[2]);
+
 	return pos;
 }
 
@@ -186,6 +143,9 @@ MBCPosition MBCUnProjector::UnProject(GLfloat knownY)
 	pos[0] = p1[0]+(p0[0]-p1[0])*yint;
 	pos[1] = knownY;
 	pos[2] = p1[2]+(p0[2]-p1[2])*yint;
+    if (MBCDebug::LogMouse())
+        fprintf(stderr, "Mouse (%.0f,%.0f) [%5.3f] -> (%4.1f,%4.1f,%4.1f)\n", 
+                fWinX, fWinY, knownY, pos[0], pos[1], pos[2]);
 
 	return pos;
 }
@@ -239,26 +199,59 @@ MBCPosition operator-(const MBCPosition & a, const MBCPosition & b)
 		r.size.height	= min(p0.y, p1.y)-r.origin.y;
 	}
 
-	return r;
+	return [self convertRectFromBacking:r];
 }
 
 - (MBCPosition) mouseToPosition:(NSPoint)mouse
 {
+    if (MBCDebug::LogMouse())
+        fprintf(stderr, "[%.0f,%.0f] ", mouse.x, mouse.y);
+    mouse = [self convertPointToBacking:mouse];
 	MBCUnProjector	unproj(mouse.x, mouse.y);
 	
 	return unproj.UnProject();
 }
 
+- (MBCPosition) mouseToPositionIgnoringY:(NSPoint)mouse
+{
+    mouse = [self convertPointToBacking:mouse];
+	MBCUnProjector	unproj(mouse.x, mouse.y);
+	
+	return unproj.UnProject(0.0f);
+}
+
 - (MBCPosition) eventToPosition:(NSEvent *)event
 {
+    [[self openGLContext] makeCurrentContext];
+
     NSPoint p = [event locationInWindow];
     NSPoint l = [self convertPoint:p fromView:nil];
 
 	return [self mouseToPosition:l];
 }
 
+- (void) mouseEntered:(NSEvent *)theEvent
+{
+    if (MBCDebug::LogMouse())
+        fprintf(stderr, "mouseEntered\n");
+    
+	[[self window] setAcceptsMouseMovedEvents:YES];
+    [[self window] makeFirstResponder:self];    
+}
+
+- (void)mouseExited:(NSEvent *)theEvent 
+{
+    if (MBCDebug::LogMouse())
+        fprintf(stderr, "mouseExited\n");
+    
+    [[self window] setAcceptsMouseMovedEvents:NO];
+}
+
 - (void) mouseMoved:(NSEvent *)event
 {
+    if (MBCDebug::LogMouse())
+        fprintf(stderr, "mouseMoved\n");
+    
 	MBCPosition 	pos 	= [self eventToPosition:event];
 	float 			pxa		= fabs(pos[0]);
 	float			pza		= fabs(pos[2]);
@@ -273,6 +266,9 @@ MBCPosition operator-(const MBCPosition & a, const MBCPosition & b)
 
 - (void) mouseDown:(NSEvent *)event
 {
+    if (MBCDebug::LogMouse())
+        fprintf(stderr, "mouseDown\n");
+    
 	MBCSquare previouslyPicked = fPickedSquare;
 
     NSPoint p = [event locationInWindow];
@@ -284,6 +280,7 @@ MBCPosition operator-(const MBCPosition & a, const MBCPosition & b)
 	// then pretend that the click happened at board surface level. Weirdly
 	// enough, this seems to give the most natural feeling mouse behavior.
 	//
+    [[self openGLContext] makeCurrentContext];
 	MBCPosition pos = [self mouseToPosition:l];
 	fSelectedDest	= [self positionToSquareOrRegion:&pos];
     switch (fSelectedDest) {
@@ -298,11 +295,23 @@ MBCPosition operator-(const MBCPosition & a, const MBCPosition & b)
 		fCurMouse 			= l;
 		fRawAzimuth 		= fAzimuth;
 		[NSCursor hide];
-		[NSEvent startPeriodicEventsAfterDelay:0.1f withPeriod:0.1f];
+		[NSEvent startPeriodicEventsAfterDelay: 0.008f withPeriod: 0.008f];
 		break;
 	default:
-		if (!fWantMouse || fInAnimation || pos[1] < 0.1)
-			return;
+        if (!fWantMouse || fInAnimation || pos[1] < 0.1)
+            return;
+        if (fSelectedDest == fPickedSquare) {
+            //
+            // When trying to move a large piece by clicking the destination, the piece
+            // sometimes can hide the destination. We try again by ignoring y.
+            //
+            MBCPosition altPos  = [self mouseToPositionIgnoringY:l];
+            MBCSquare   altDest = [self positionToSquareOrRegion:&altPos];
+            if (altDest < kSyntheticSquare) {
+                pos             = altPos;
+                fSelectedDest   = altDest;
+            }
+        }
 		//
 		// Let interactive player decide whether we hit one of their pieces
 		//
@@ -314,10 +323,6 @@ MBCPosition operator-(const MBCPosition & a, const MBCPosition & b)
 	pos[1]		    	= 0.0f;
 	gettimeofday(&fLastRedraw, NULL);
 	fLastSelectedPos	= pos;
-	//
-	// For better interactivity, we stop the engine while a drag is in progress
-	//
-	[[fController engine] interruptEngine];
 	[self drawNow];
 	
 	NSDate * whenever = [NSDate distantFuture];
@@ -334,9 +339,7 @@ MBCPosition operator-(const MBCPosition & a, const MBCPosition & b)
 			break;
 		case NSLeftMouseUp: {
 			[self dragAndRedraw:event forceRedraw:YES];
-			NSUserDefaults * defaults 	= [NSUserDefaults standardUserDefaults];
-			[defaults setFloat:fElevation forKey:kMBCBoardAngle];
-			[defaults setFloat:fAzimuth 	 forKey:kMBCBoardSpin];
+            [fController setAngle:fElevation spin:fAzimuth];
 			[fInteractive endSelection:fSelectedDest animate:NO];
 			if (fPickedSquare == previouslyPicked)
 				fPickedSquare = kInvalidSquare; // Toggle pick
@@ -357,6 +360,9 @@ MBCPosition operator-(const MBCPosition & a, const MBCPosition & b)
 
 - (void) mouseUp:(NSEvent *)event
 {
+    if (MBCDebug::LogMouse())
+        fprintf(stderr, "mouseUp\n");
+    
 	if (!fWantMouse || fInAnimation)
 		return;
 
@@ -411,6 +417,8 @@ MBCPosition operator-(const MBCPosition & a, const MBCPosition & b)
 			// On drag, we can use a fairly fast interpolation to determine
 			// the 3D coordinate using the y where we touched the piece
 			//
+            [[self openGLContext] makeCurrentContext];
+           l = [self convertPointToBacking:l];
 			MBCUnProjector	unproj(l.x, l.y);
 
 			fSelectedPos 				= unproj.UnProject(0.0f);
@@ -510,9 +518,6 @@ MBCPosition operator-(const MBCPosition & a, const MBCPosition & b)
 		ch = tolower(ch);
 		// Fall through
 	case 'b':
-		if (fKeyBuffer == '=')
-			goto promotion_piece;
-		// Else fall through
 	case 'a':
 	case 'c':
 	case 'd':
@@ -521,7 +526,12 @@ MBCPosition operator-(const MBCPosition & a, const MBCPosition & b)
 	case 'g':
 	case 'h':
 	case '=':
-		fKeyBuffer	= ch;
+        if (ch == 'b' && fKeyBuffer == '=')
+            goto promotion_piece;
+        if (fWantMouse)
+            fKeyBuffer	= ch;
+        else 
+            NSBeep();
 		break;
 	case '1':
 	case '2':
@@ -531,7 +541,7 @@ MBCPosition operator-(const MBCPosition & a, const MBCPosition & b)
 	case '6':
 	case '7':
 	case '8':
-		if (isalpha(fKeyBuffer)) {
+		if (fWantMouse && isalpha(fKeyBuffer)) {
 			MBCSquare sq = Square(fKeyBuffer, ch-'0');
 			if (fPickedSquare != kInvalidSquare) {
 				[fInteractive startSelection:fPickedSquare];
@@ -585,6 +595,12 @@ MBCPosition operator-(const MBCPosition & a, const MBCPosition & b)
 		}
 	    fKeyBuffer = 0;
 	    break;
+	default:
+		//
+		// Propagate ESC etc.
+		//
+		[super keyDown:event];
+		break;
 	}
 }
 
