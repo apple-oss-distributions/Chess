@@ -238,6 +238,7 @@ void SpeakStringWhenReady(NSSpeechSynthesizer * synth, NSString * text)
 		//
 		SRStopListening(fRecognizer);
 		[fLanguageModel release];
+        fLanguageModel = nil;
 		SRReleaseObject(fRecognizer);
 		SRCloseRecognitionSystem(fRecSystem);
 		fRecSystem	=	0;
@@ -246,9 +247,8 @@ void SpeakStringWhenReady(NSSpeechSynthesizer * synth, NSString * text)
 
 - (void)allowedToListen:(BOOL)allowed
 {
-    if (allowed)
-        [self updateNeedMouse:self];
-    else if (fRecSystem)
+    [self updateNeedMouse:self];
+    if (fRecSystem && !allowed)
         SRStopListening(fRecognizer);
 }
 
@@ -276,6 +276,8 @@ void SpeakStringWhenReady(NSSpeechSynthesizer * synth, NSString * text)
 - (void)dealloc
 {
     [self removeChessObservers];
+    [fSpeechHelp release];
+    [fLanguageModel release];
     [super dealloc];
 }
 
@@ -578,6 +580,14 @@ void SpeakStringWhenReady(NSSpeechSynthesizer * synth, NSString * text)
              object:fDocument userInfo:(id)move];
 		}
 	}
+}
+
+- (void) removeController
+{
+    //
+    // Avoid crashes from delayed methods
+    //
+    fController = nil;
 }
 
 @end

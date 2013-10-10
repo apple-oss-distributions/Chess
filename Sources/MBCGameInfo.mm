@@ -51,10 +51,6 @@
 
 #import <GameKit/GameKit.h>
 
-//
-// Private Framework
-//
-#import <GeoKit/GeoKit.h>
 
 #include <sys/types.h>
 #include <regex.h>
@@ -95,11 +91,8 @@ NSString * kMBCHumanLast		= @"MBCHumanLast";
 	// 
 	// Get the city we might be in. 
 	//
-	// PGN wants IOC codes for countries, which we're too lazy to convert.
-	//
-	GEOCity *		cityInfo = [GEOCity systemCity];
-	NSString *		city 	= cityInfo ? [cityInfo displayName] : @"?";
-	NSString *		country	= cityInfo ? [[cityInfo country] displayName] : @"?";
+	NSString *		city 	= @"?";
+	NSString *		country	= @"?";
 
 	NSString * event = 
 		[NSLocalizedString(@"casual_game", @"Casual Game") retain];
@@ -425,6 +418,7 @@ const int kNumFixedMenuItems = 2;
 
 - (IBAction) updateProperties:(id)sender
 {
+	[self willChangeValueForKey:@"gameTitle"];
     NSUserDefaults * 	defaults 	= [NSUserDefaults standardUserDefaults];
    
     //
@@ -446,6 +440,7 @@ const int kNumFixedMenuItems = 2;
 
 	[NSApp endSheet:[sender window]];
     [fEditedProperties release];
+	[self didChangeValueForKey:@"gameTitle"];
 }
 
 - (IBAction) updateVoices:(id)sender;
@@ -474,6 +469,16 @@ const int kNumFixedMenuItems = 2;
 
 	[self setValue:boardStyle forKey:kMBCBoardStyle];
 	[self setValue:pieceStyle forKey:kMBCPieceStyle];
+}
+
+//
+//     If there is no document anymore, fBoard can't be trusted either
+//
+- (void)setDocument:(MBCDocument *)document
+{
+    fDocument = document;
+    if (!fDocument)
+        fBoard = nil;
 }
 
 - (int)numberOfRowsInTableView:(NSTableView *)aTableView

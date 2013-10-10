@@ -64,36 +64,51 @@
 
 - (void)removeChessObservers
 {
-    if (!fHasObservers)
+    if (![fObservers count])
         return;
     
     NSNotificationCenter * notificationCenter = [NSNotificationCenter defaultCenter];
-    [notificationCenter removeObserver:self name:MBCGameLoadNotification object:nil];
-    [notificationCenter removeObserver:self name:MBCGameStartNotification object:nil];
-    [notificationCenter removeObserver:self name:MBCTakebackNotification object:nil];
+    
+    [fObservers enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
+        [notificationCenter removeObserver:obj];
+    }];
+    
     [notificationCenter removeObserver:self name:MBCWhiteMoveNotification object:nil];
     [notificationCenter removeObserver:self name:MBCBlackMoveNotification object:nil];
     [notificationCenter removeObserver:self name:MBCGameEndNotification object:nil];
     [notificationCenter removeObserver:self name:MBCEndMoveNotification object:nil];
+    
     MBCDocument *   document    = [self document];
     [document removeObserver:self forKeyPath:kMBCDefaultVoice];
     [document removeObserver:self forKeyPath:kMBCAlternateVoice];
     [document removeObserver:self forKeyPath:kMBCBoardStyle];
     [document removeObserver:self forKeyPath:kMBCPieceStyle];
+    [document removeObserver:self forKeyPath:kMBCListenForMoves];
     
-    fHasObservers = NO;
+    [fObservers removeAllObjects];
 }
 
 - (void)dealloc
 {
     [self removeChessObservers];
+    [fObservers release];
+    [primaryLocalization release];
+    [alternateLocalization release];
     [super dealloc];
+}
+
+- (void)endAnimation
+{
+    fCurAnimation = nil;
 }
 
 - (void)windowDidLoad
 {
     [super windowDidLoad];
 
+    if (!fObservers)
+        fObservers = [[NSMutableArray alloc] init];
+    
     MBCDocument *   document    = [self document];
     [document setBoard:board];
     [engine setDocument:document];
@@ -103,38 +118,41 @@
 
     [self removeChessObservers];
     NSNotificationCenter * notificationCenter = [NSNotificationCenter defaultCenter];
-    [notificationCenter
-     addObserverForName:MBCGameLoadNotification object:document 
-     queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *note) {
-         NSDictionary * dict    = [note userInfo];
-         NSString *     fen     = [dict objectForKey:@"Position"];
-         NSString *     holding = [dict objectForKey:@"Holding"];
-         NSString *     moves   = [dict objectForKey:@"Moves"];
- 
-         if (fen || moves)
-             [engine setGame:[document variant] fen:fen holding:holding moves:moves];
-    }];    
-    [notificationCenter
-     addObserverForName:MBCGameStartNotification object:document 
-     queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *note) {
-         MBCVariant     variant  = [document variant];
-         
-         [gameView startGame:variant playing:[document humanSide]];
-         [engine setSearchTime:[document integerForKey:kMBCSearchTime]];
-         [engine startGame:variant playing:[document engineSide]];
-         [interactive startGame:variant playing:[document humanSide]];	
-         [gameInfo startGame:variant playing:[document humanSide]];
-         if (document.match)
-             [remote startGame:variant playing:[document remoteSide]];
-     }];  
-    [notificationCenter
-     addObserverForName:MBCTakebackNotification object:document 
-     queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *note) {
-         [gameView unselectPiece];
-         [gameView hideMoves];
-         [board undoMoves:2];
-     }];  
-	[notificationCenter 
+    [fObservers addObject:
+        [notificationCenter
+         addObserverForName:MBCGameLoadNotification object:document 
+         queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *note) {
+             NSDictionary * dict    = [note userInfo];
+             NSString *     fen     = [dict objectForKey:@"Position"];
+             NSString *     holding = [dict objectForKey:@"Holding"];
+             NSString *     moves   = [dict objectForKey:@"Moves"];
+     
+             if (fen || moves)
+                 [engine setGame:[document variant] fen:fen holding:holding moves:moves];
+         }]];
+    [fObservers addObject:
+        [notificationCenter
+         addObserverForName:MBCGameStartNotification object:document 
+         queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *note) {
+             MBCVariant     variant  = [document variant];
+             
+             [gameView startGame:variant playing:[document humanSide]];
+             [engine setSearchTime:[document integerForKey:kMBCSearchTime]];
+             [engine startGame:variant playing:[document engineSide]];
+             [interactive startGame:variant playing:[document humanSide]];	
+             [gameInfo startGame:variant playing:[document humanSide]];
+             if (document.match)
+                 [remote startGame:variant playing:[document remoteSide]];
+         }]];  
+    [fObservers addObject:
+        [notificationCenter
+         addObserverForName:MBCTakebackNotification object:document 
+         queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *note) {
+             [gameView unselectPiece];
+             [gameView hideMoves];
+             [board undoMoves:2];
+         }]];  
+	[notificationCenter
      addObserver:self
      selector:@selector(executeMove:)
      name:MBCWhiteMoveNotification
@@ -158,7 +176,7 @@
     [document addObserver:self forKeyPath:kMBCAlternateVoice options:NSKeyValueObservingOptionNew context:nil];
     [document addObserver:self forKeyPath:kMBCBoardStyle options:NSKeyValueObservingOptionNew context:nil];
     [document addObserver:self forKeyPath:kMBCPieceStyle options:NSKeyValueObservingOptionNew context:nil];
-    fHasObservers = YES;
+    [document addObserver:self forKeyPath:kMBCListenForMoves options:NSKeyValueObservingOptionNew context:nil];
     
 	gameView->fElevation            = [document floatForKey:kMBCBoardAngle];
 	gameView->fAzimuth              = [document floatForKey:kMBCBoardSpin];
@@ -174,17 +192,29 @@
     [window setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
 	[window makeFirstResponder:gameView];
 	[window makeKeyAndOrderFront:self];
+    [fObservers addObject:
+        [notificationCenter
+         addObserverForName:NSWindowWillCloseNotification object:window
+         queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *note) {
+             //
+             //     Due to a plethora of mutual observers, circular references prevent
+             //     proper deallocation unless we remove all of observers first.
+             //
+             [fCurAnimation endState];
+             [board removeChessObservers];
+             [engine removeChessObservers];
+             [engine shutdown];
+             [gameInfo removeChessObservers];
+             [gameInfo setDocument:nil];
+             [interactive removeChessObservers];
+             [interactive removeController];
+             [remote removeChessObservers];
+             [self removeChessObservers];
+         }]];
     if ([document needNewGameSheet]) {
         usleep(500000);
         [self showNewGameSheet];
     }
-}
-
-- (void)close
-{
-    if (![logView superview])
-        [logView release];
-    [super close];
 }
 
 - (void)windowDidBecomeMain:(NSNotification *)notification
@@ -208,6 +238,8 @@
     } else if ([keyPath isEqual:kMBCAlternateVoice]) {
         [alternateSynth release];           alternateSynth          = nil;
         [alternateLocalization release];    alternateLocalization   = nil;
+    } else if ([keyPath isEqual:kMBCListenForMoves]) {
+        [interactive allowedToListen:[self listenForMoves]];
     } else {
         [gameView setStyleForBoard:[[self document] objectForKey:kMBCBoardStyle] 
                             pieces:[[self document] objectForKey:kMBCPieceStyle]];        
@@ -499,11 +531,12 @@ uint32_t sAttributesForSides[] = {
             [controller setValue:100.0 forAchievement:@"AppleChess_Checker"];
         if (move->fEnPassant)
             [controller setValue:100.0 forAchievement:@"AppleChess_Sidestepped"];
-        if (move->fPromotion)
+        if (move->fPromotion) {
             if (Piece(move->fPromotion) == QUEEN)
                 [controller setValue:100.0 forAchievement:@"AppleChess_Promotional_Value"];
             else
                 [controller setValue:100.0 forAchievement:@"AppleChess_Promotional_Discount"];
+        }
         if (move->fCommand == kCmdMove && Piece(move->fPiece) == PAWN
          && (labs((int)Row(move->fFromSquare)-(int)Row(move->fToSquare)) == 2)
         )
@@ -556,7 +589,7 @@ uint32_t sAttributesForSides[] = {
     [self updateAchievementsForMove:move];
     
 	if (move->fAnimate)
-		[MBCMoveAnimation moveAnimation:move board:board view:gameView];
+		fCurAnimation = [MBCMoveAnimation moveAnimation:move board:board view:gameView];
 	else 
 		[[NSNotificationQueue defaultQueue] 
          enqueueNotification:
@@ -588,7 +621,7 @@ uint32_t sAttributesForSides[] = {
 		//
 		// Rotate board
 		//
-		[MBCBoardAnimation boardAnimation:gameView];
+		fCurAnimation = [MBCBoardAnimation boardAnimation:gameView];
 	}
 }
 
@@ -774,6 +807,21 @@ uint32_t sAttributesForSides[] = {
     [[self document] setObject:[NSNumber numberWithFloat:spin] forKey:kMBCBoardSpin];
 }
 
+- (IBAction) profileDraw:(id)sender
+{
+    timeval startTime;
+    gettimeofday(&startTime, NULL);
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        timeval endTime;
+        [gameView profileDraw];
+        gettimeofday(&endTime, NULL);
+        double elapsed = endTime.tv_sec-startTime.tv_sec
+        +0.000001*(endTime.tv_usec-startTime.tv_usec);
+        NSLog(@"Profiling took %4.2fs, %4.0fms per frame",
+              elapsed, elapsed*10.0);
+    });
+}
+
 #pragma mark -
 #pragma mark GKTurnBasedMatchmakerViewControllerDelegate
 // The user has cancelled
@@ -817,14 +865,17 @@ uint32_t sAttributesForSides[] = {
 
 - (IBAction)showAchievements:(id)sender
 {
-    GKAchievementViewController * achievements = [[GKAchievementViewController alloc] init];
-    achievements.achievementDelegate = self;
-    [dialogController presentViewController:achievements];
+    fAchievements = [[GKAchievementViewController alloc] init];
+    fAchievements.achievementDelegate = self;
+    [dialogController presentViewController:fAchievements];
 }
 
 - (void)achievementViewControllerDidFinish:(GKAchievementViewController *)vc
 {
-    [dialogController dismiss:vc];
+    if (fAchievements) {
+        [dialogController dismiss:vc];
+        fAchievements = nil;
+    }
 }
 
 

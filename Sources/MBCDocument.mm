@@ -1,7 +1,7 @@
 /*
 	File:		MBCDocument.mm
 	Contains:	Document representing a Chess game
-	Copyright:	© 2003-2012 by Apple Inc., all rights reserved.
+	Copyright:	© 2003-2013 by Apple Inc., all rights reserved.
 
 	IMPORTANT: This Apple software is supplied to you by Apple Computer,
 	Inc.  ("Apple") in consideration of your agreement to the following
@@ -216,15 +216,10 @@ static void MBCEndTurn(GKTurnBasedMatch *match, NSData * matchData)
     if (createDoc) {
         [doc makeWindowControllers];
         [doc showWindows]; 
+        [doc autorelease];
     }
     
     return YES;
-}
-
-- (void)dealloc
-{
-    [properties release];
-    [super dealloc];
 }
 
 - (id)init
@@ -235,11 +230,9 @@ static void MBCEndTurn(GKTurnBasedMatch *match, NSData * matchData)
     if (![self disallowSubstitutes])
         for (MBCDocument * doc in [[NSDocumentController sharedDocumentController] documents])
             if ([doc ephemeral]) {
-                [self release];
-                self = doc;
-                [self setNeedNewGameSheet:NO];
+                [doc close];
                 
-                return self;
+                break;
             }
     if (self = [super init]) {
         [self setEphemeral:YES];
@@ -250,6 +243,12 @@ static void MBCEndTurn(GKTurnBasedMatch *match, NSData * matchData)
                           forKey:sProperties[i]];
     }
     return self;
+}
+
+- (void)dealloc
+{
+    [properties release];
+    [super dealloc];
 }
 
 - (id)initForNewGameSheet:(NSArray *)guests
@@ -306,13 +305,32 @@ static void MBCEndTurn(GKTurnBasedMatch *match, NSData * matchData)
     return self;
 }
 
+- (void)duplicateDocument:(id)sender
+{
+    [self setEphemeral:NO];
+    [super duplicateDocument:sender];
+}
+
 - (void)updateChangeCount:(NSDocumentChangeType)change
 {
-    if ([board numMoves] || [self remoteSide] != kNeitherSide) {
+    if (!board || [board numMoves] || [self remoteSide] != kNeitherSide) {
         [self setEphemeral:NO];
     
         [super updateChangeCount:change];
     }
+}
+
+- (void)close
+{
+    //
+    // Delay disposing document a little while, because main window with active bindings is autoreleased
+    //
+    [self retain];
+    dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, 10*NSEC_PER_MSEC);
+    dispatch_after(popTime, dispatch_get_main_queue(), ^(void){
+        [self release];
+    });
+    [super close];
 }
 
 - (void)canCloseDocumentWithDelegate:(id)delegate shouldCloseSelector:(SEL)sel contextInfo:(void *)contextInfo
@@ -449,15 +467,20 @@ static void MBCEndTurn(GKTurnBasedMatch *match, NSData * matchData)
         return localWhite ? kWhiteSide : kBlackSide;
 }
 
-- (BOOL) humanTurn
+- (BOOL) nontrivialHumanTurn
 {
+    //
+    //    Dock badge is rather distracting, save this for important situations.
+    //
     if ([self gameDone])
         return NO;
+    if ([self engineSide] != kNeitherSide && [[properties valueForKey:kMBCSearchTime] intValue] < 5)
+        return NO;  // Only report for engine search > 30s
     switch ([self humanSide]) {
     case kBothSides:
-        return YES;
+        return NO;  // Duh! We know it's a human's turn
     case kWhiteSide:
-        return !([board numMoves] & 1);
+        return [board numMoves] && !([board numMoves] & 1);
     case kBlackSide:
         return ([board numMoves] & 1);
     case kNeitherSide:
@@ -741,6 +764,26 @@ static void MBCEndTurn(GKTurnBasedMatch *match, NSData * matchData)
 	return res;
 }
 
+- (void)setFileURL:(NSURL *)url
+{
+    //
+    // Never pick PGN representation as autosave
+    //
+    if ([[url pathExtension] isEqualToString:@"game"])
+        [super setFileURL:url];
+}
+
+- (void)performActivityWithSynchronousWaiting:(BOOL)waitSynchronously usingBlock:(void (^)(void (^)()))block
+{
+    //      If achievement controller is showing and we have to put up e.g. a save dialog,
+    //      dismiss it.
+    //
+    NSArray * windowControllers = [self windowControllers];
+    if ([windowControllers count])
+        [[windowControllers objectAtIndex:0] achievementViewControllerDidFinish:nil];
+    [super performActivityWithSynchronousWaiting:waitSynchronously usingBlock:block];
+}
+
 - (NSDocument *)duplicateAndReturnError:(NSError **)outError
 {
     if (match) {
@@ -812,7 +855,7 @@ static void MBCEndTurn(GKTurnBasedMatch *match, NSData * matchData)
 	BOOL loaded = [super readFromURL:absoluteURL ofType:typeName error:outError];
 	if (loaded && [absoluteURL isEqual:[MBCDocument casualGameSaveLocation]]) // Upgrade legacy autosave
 		[self setFileURL:nil];
-	
+
 	return loaded;
 }
 

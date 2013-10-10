@@ -52,12 +52,15 @@
 @class MBCInteractivePlayer;
 @class MBCGameInfo;
 @class MBCRemotePlayer;
+@class MBCAnimation;
 
 @interface MBCBoardWin : NSWindowController <NSWindowDelegate,
     GKAchievementViewControllerDelegate,
     GKTurnBasedMatchmakerViewControllerDelegate> 
 {
-    BOOL    fHasObservers;
+    NSMutableArray *                fObservers;
+    GKAchievementViewController *   fAchievements;
+    MBCAnimation *                  fCurAnimation;
 }
 
 @property (nonatomic, assign) IBOutlet MBCBoardView *           gameView;
@@ -76,6 +79,7 @@
 @property (nonatomic, readonly) NSDictionary *                  primaryLocalization;
 @property (nonatomic, readonly) NSDictionary *                  alternateLocalization;
 
+- (void) removeChessObservers;
 - (IBAction)takeback:(id)sender;
 - (void) requestTakeback;
 - (void) requestDraw;
@@ -86,6 +90,7 @@
 - (IBAction) startNewGame:(id)sender;
 - (IBAction) cancelNewGame:(id)sender;
 - (IBAction) showAchievements:(id)sender;
+- (IBAction) profileDraw:(id)sender;
 - (void)adjustLogView;
 - (BOOL)listenForMoves;
 - (NSString *)speakOpponentTitle;
@@ -103,5 +108,6 @@
 - (IBAction) showPreferences:(id)sender;
 - (void)setAngle:(float)angle spin:(float)spin;
 - (void)handleRemoteResponse:(NSString *)response;
+- (void)endAnimation;
 
 @end

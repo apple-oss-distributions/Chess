@@ -51,8 +51,6 @@
 #import "MBCInteractivePlayer.h"
 #import "MBCDocument.h"
 #import "MBCGameInfo.h"
-#import "MBCBoardAnimation.h"
-#import "MBCMoveAnimation.h"
 #import "MBCUserDefaults.h"
 #import "MBCDebug.h"
 
@@ -142,6 +140,7 @@
     MBCDocument * doc = [[MBCDocument alloc] initForNewGameSheet:nil];
     [doc makeWindowControllers];
     [doc showWindows];
+    [doc autorelease];
 }
 
 - (BOOL) hideDebugMenu
@@ -307,7 +306,7 @@
     static NSUInteger sPrevOurTurn = 0;
     unsigned ourTurn = 0;
     for (MBCDocument * doc in [[NSDocumentController sharedDocumentController] documents])
-        if ([doc humanTurn])
+        if ([doc nontrivialHumanTurn])
             ++ourTurn;
     NSDockTile * tile = [NSApp dockTile];
     if (ourTurn)
@@ -327,6 +326,7 @@
     MBCDocument * doc = [[MBCDocument alloc] initForNewGameSheet:playersToInvite];
     [doc makeWindowControllers];
     [doc showWindows];
+    [doc autorelease];
 }
 
 - (void)handleTurnEventForMatch:(GKTurnBasedMatch *)match

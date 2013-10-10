@@ -43,8 +43,6 @@
 	ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #import "MBCBoardView.h"
-#import "MBCBoardAnimation.h"
-#import "MBCMoveAnimation.h"
 
 //
 // Our implementation is distributed across several other files
@@ -109,18 +107,35 @@ void MBCColor::SetColor(NSColor * newColor)
 	};
 	NSOpenGLPixelFormat *	pixelFormat = 
 		[[NSOpenGLPixelFormat alloc] initWithAttributes:(fsaaSamples > 0) ? fsaa_attr : jaggy_attr];
+    if (fsaaSamples > 0) {
+        //
+        // We don't accept any substitutes
+        //
+        GLint actualFsaa;
+        [pixelFormat getValues:&actualFsaa forAttribute:NSOpenGLPFASamples forVirtualScreen:0];
+        if (actualFsaa != fsaaSamples) {
+            [pixelFormat release];
+            
+            return nil;
+        }
+    }
 
 	return [pixelFormat autorelease];
 }
 
-static int MaxAntiAliasing()
+- (int) maxAntiAliasing
 {
     //
     //  Analyze VRAM configuration and limit FSAA for low memory configurations.
+    //  On retina displays, always limit FSAA, because the VRAM consumption is even more
+    //  staggering and the payoff just isn't there.
     //
 	static int sMax = -1;
 
 	if (sMax < 0) {
+        //
+        // Test VRAM size
+        //
 		GLint min_vram = 0;
 		CGLRendererInfoObj rend;
 		GLint n_rend = 0;
@@ -134,6 +149,14 @@ static int MaxAntiAliasing()
                 min_vram = std::min(min_vram, cur_vram);
 		}
 		sMax = (min_vram > 256 ? 8 : 4);
+        //
+        // Test for retina display
+        //
+        float backingScaleFactor = [[self window] backingScaleFactor];
+        if (!backingScaleFactor)
+            backingScaleFactor = [[NSScreen mainScreen] backingScaleFactor];
+        if (backingScaleFactor > 1.5f)
+            sMax = (min_vram > 512 ? 4 : 2);
 	}
 
 	return sMax;
@@ -149,13 +172,14 @@ static int MaxAntiAliasing()
 	// hardware lets use get away with it.
 	//
 	NSOpenGLPixelFormat * pixelFormat = nil;
-	for (fMaxFSAA = MaxAntiAliasing()+2; !pixelFormat; )
+	for (fMaxFSAA = [self maxAntiAliasing]+2; !pixelFormat; )
 		pixelFormat = [self pixelFormatWithFSAA:(fMaxFSAA -= 2)];
 	fCurFSAA = fMaxFSAA;
     [super initWithFrame:rect pixelFormat:pixelFormat];
     [self setWantsBestResolutionOpenGLSurface:YES];
     [[self openGLContext] makeCurrentContext];
-	glEnable(GL_MULTISAMPLE);
+    if (fCurFSAA)
+        glEnable(GL_MULTISAMPLE);
 	
 	//
 	// Determine some of our graphics limit
@@ -203,6 +227,22 @@ static int MaxAntiAliasing()
     return self;
 }
 
+- (void)dealloc
+{
+    [fBoardAttr release];
+    [fPieceAttr release];
+    [fBoardStyle release];
+    [fPieceStyle release];
+    [fBoardDrawStyle[0] release];
+    [fBoardDrawStyle[1] release];
+    [fPieceDrawStyle[0] release];
+    [fPieceDrawStyle[1] release];
+    [fBorderDrawStyle release];
+    [fSelectedPieceDrawStyle release];
+    
+    [super dealloc];
+}
+
 - (void)updateTrackingAreas 
 {
     [self removeTrackingArea:fTrackingArea];
@@ -227,19 +267,27 @@ static int MaxAntiAliasing()
 	} else {
 		if (fCurFSAA == fMaxFSAA || curSize >= fLastFSAASize)
 			return; // Won't get any better
-		fCurFSAA 		= fMaxFSAA+2;
+		fCurFSAA 		= fMaxFSAA*2;
 		fLastFSAASize	= 2000000000;
 	}
 	fIsPickingFormat = true;
+    NSOpenGLPixelFormat * pixelFormat;
 	do {
-		fCurFSAA -= 2;
-		[self clearGLContext];
-		[self setPixelFormat:[self pixelFormatWithFSAA:fCurFSAA]];
-		[[self openGLContext] setView:self];
-	} while (fCurFSAA && [[self openGLContext] view] != self);
+        fCurFSAA    = (fCurFSAA > 1) ? fCurFSAA/2 : 0;
+        pixelFormat = [self pixelFormatWithFSAA:fCurFSAA];
+        if (pixelFormat) {
+            [self clearGLContext];
+            [self setPixelFormat:pixelFormat];
+            [[self openGLContext] setView:self];
+        } 
+	} while (fCurFSAA && (!pixelFormat || [[self openGLContext] view] != self));
 	[[self openGLContext] makeCurrentContext];
+	[self loadStyles];
+    fNeedStaticModels	= true;
 	if (fCurFSAA)
 		glEnable(GL_MULTISAMPLE);
+    else
+        glDisable(GL_MULTISAMPLE);
 	fIsPickingFormat 	= false;
 	NSLog(@"Size is now %.0fx%.0f FSAA = %d [Max %d]\n", bounds.size.width, bounds.size.height, fCurFSAA, fMaxFSAA);
 }
@@ -295,11 +343,9 @@ static int MaxAntiAliasing()
 
 - (void) profileDraw
 {
-	[self lockFocus];
-	for (int i=0; i<100; ++i) {
-		[self drawPosition];
-	}
-	[self unlockFocus];
+    dispatch_apply(100, dispatch_get_main_queue(), ^(size_t) {
+        [self drawNow];
+    });
 }
 
 - (void) needsUpdate
@@ -311,7 +357,6 @@ static int MaxAntiAliasing()
 
 - (void) endGame;
 {
-	[MBCAnimation cancelCurrentAnimation];
 	fSelectedPiece		= EMPTY;
 	fPickedSquare		= kInvalidSquare;
 	fWantMouse			= false;
@@ -535,6 +580,21 @@ static int MaxAntiAliasing()
 - (void) animationDone
 {
 	fInAnimation	= false;
+}
+
+- (IBAction)increaseFSAA:(id)sender
+{
+    fMaxFSAA = fMaxFSAA ? fMaxFSAA * 2 : 2;
+    [self pickPixelFormat:NO];
+    fMaxFSAA = fCurFSAA;
+	[self needsUpdate];
+}
+
+- (IBAction)decreaseFSAA:(id)sender
+{
+    fMaxFSAA = fMaxFSAA > 2 ? fMaxFSAA / 2 : 0;
+    [self pickPixelFormat:NO];
+	[self needsUpdate];
 }
 
 @end
