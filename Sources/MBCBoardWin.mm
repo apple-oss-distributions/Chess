@@ -90,6 +90,7 @@
 
 - (void)dealloc
 {
+    [fCurAnimation cancel];
     [self removeChessObservers];
     [fObservers release];
     [primaryLocalization release];
@@ -296,8 +297,8 @@ typedef void (^MBCAlertCallback)(NSInteger returnCode);
                           didEndSelector:@selector(endAlertSheet:returnCode:contextInfo:)
                              contextInfo:Block_copy(
     ^(NSInteger returnCode) {
-        MBCController * controller = [NSApp delegate];
-        if (returnCode == NSAlertDefaultReturn) {
+        MBCController * controller = (MBCController *)[NSApp delegate];
+        if (returnCode == NSAlertFirstButtonReturn) {
             [engine takeback];
             [controller setValue:100.0 forAchievement:@"AppleChess_Merciful"];
             [[self document] allowTakeback:YES];
@@ -321,8 +322,8 @@ typedef void (^MBCAlertCallback)(NSInteger returnCode);
                           didEndSelector:@selector(endAlertSheet:returnCode:contextInfo:)
                              contextInfo:Block_copy(
         ^(NSInteger returnCode) {
-            MBCController * controller = [NSApp delegate];
-            if (returnCode == NSAlertDefaultReturn) {
+            MBCController * controller = (MBCController *)[NSApp delegate];
+            if (returnCode == NSAlertFirstButtonReturn) {
                 [[NSNotificationCenter defaultCenter] 
                  postNotificationName:MBCGameEndNotification
                  object:[self document] userInfo:[MBCMove moveWithCommand:kCmdDraw]];
@@ -373,7 +374,7 @@ uint32_t sAttributesForSides[] = {
 	matchRequest.maxPlayers = 2;
 	matchRequest.playerGroup = [defaults integerForKey:kMBCNewGameVariant];
     matchRequest.playerAttributes = sAttributesForSides[[defaults integerForKey:kMBCNewGameSides]];
-	matchRequest.playersToInvite = nil;
+	matchRequest.recipients = nil;
 	
 	GKTurnBasedMatchmakerViewController *shadkhan = [[[GKTurnBasedMatchmakerViewController alloc] initWithMatchRequest:matchRequest] autorelease];
 	shadkhan.turnBasedMatchmakerDelegate = self;
@@ -486,7 +487,7 @@ uint32_t sAttributesForSides[] = {
     if (move->fCommand == kCmdBlackWins && SideIncludesBlack([[self document] humanSide]))
         weWon = YES;
     if (weWon) {
-        MBCController * controller      = [NSApp delegate];
+        MBCController * controller      = (MBCController *)[NSApp delegate];
         if ([[self document] engineSide] != kNeitherSide && [[self document] integerForKey:kMBCMinSearchTime] >= 0) 
             [controller setValue:100.0 forAchievement:@"AppleChess_Luddite"];
         if ([[self document] remoteSide] != kNeitherSide) {
@@ -497,8 +498,8 @@ uint32_t sAttributesForSides[] = {
                 NSMutableDictionary * v = victories 
                     ? [victories mutableCopy] : [[NSMutableDictionary alloc] init];
                 for (GKTurnBasedParticipant * p in [[self document] match].participants)
-                    if (![p.playerID isEqual:[controller localPlayer].playerID])
-                        [v setObject:[NSNumber numberWithBool:YES] forKey:p.playerID];
+                    if (![p.player.playerID isEqual:[controller localPlayer].playerID])
+                        [v setObject:[NSNumber numberWithBool:YES] forKey:p.player.playerID];
                 victories = [v autorelease];
             }
             [defaults setObject:victories forKey:kMBCGCVictories];
@@ -516,7 +517,7 @@ uint32_t sAttributesForSides[] = {
     BOOL            humanMove;
     MBCVariant      variant         = [[self document] variant];
     BOOL            notAntiChess    = variant == kVarNormal || variant == kVarCrazyhouse;
-    MBCController * controller      = [NSApp delegate];
+    MBCController * controller      = (MBCController *)[NSApp delegate];
     MBCPieceCode    ourColor        = Color(move->fPiece);
     MBCPieceCode    oppColor        = MBCPieceCode(Opposite(ourColor));
     
@@ -845,13 +846,15 @@ uint32_t sAttributesForSides[] = {
 - (void)turnBasedMatchmakerViewController:(GKTurnBasedMatchmakerViewController *)vc didFindMatch:(GKTurnBasedMatch *)match {
 	[dialogController dismiss:vc];
     [NSApp stopModal];
-	[[NSApp delegate] startNewOnlineGame:match withDocument:[self document]];
+    
+    MBCController *appDelegate = (MBCController *)[[NSApplication sharedApplication] delegate];
+    [appDelegate startNewOnlineGame:match withDocument:[self document]];
 }
 
 // Called when a users chooses to quit a match and that player has the current turn.  The developer should call playerQuitInTurnWithOutcome:nextPlayer:matchData:completionHandler: on the match passing in appropriate values.  They can also update matchOutcome for other players as appropriate.
 - (void)turnBasedMatchmakerViewController:(GKTurnBasedMatchmakerViewController *)vc playerQuitForMatch:(GKTurnBasedMatch *)match {
     for (GKTurnBasedParticipant * participant in[match participants])
-        if ([[participant playerID] isEqual:[[[NSApp delegate] localPlayer] playerID]])
+        if ([participant.player.playerID isEqual:[[(MBCController *)[NSApp delegate] localPlayer] playerID]])
             [participant setMatchOutcome:GKTurnBasedMatchOutcomeQuit];
         else
             [participant setMatchOutcome:GKTurnBasedMatchOutcomeWon];
@@ -865,18 +868,18 @@ uint32_t sAttributesForSides[] = {
 
 - (IBAction)showAchievements:(id)sender
 {
-    fAchievements = [[GKAchievementViewController alloc] init];
-    fAchievements.achievementDelegate = self;
-    [dialogController presentViewController:fAchievements];
+    // Create an achievementVC, set the delegate and present the view from GKDiaglogController
+    GKAchievementViewController *vc = [[[GKAchievementViewController alloc] init] autorelease];
+    vc.achievementDelegate = self;
+    
+    [[GKDialogController sharedDialogController] presentViewController:vc];
 }
 
 - (void)achievementViewControllerDidFinish:(GKAchievementViewController *)vc
 {
-    if (fAchievements) {
-        [dialogController dismiss:vc];
-        fAchievements = nil;
+    // Check to see if the ViewController exist, if it does, we need to dismiss it if the player has finished with the view
+    if (vc) {
+        [[GKDialogController sharedDialogController] dismiss:vc];
     }
 }
-
-
 @end
